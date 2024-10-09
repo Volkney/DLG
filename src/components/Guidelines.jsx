@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 const BIN_CAPACITIES = {
   A: 25, B: 10, C: 50, D: 80, E: 10, F: 10
@@ -15,8 +15,6 @@ const AircraftLoadingForm = () => {
   });
 
   const [selectedCity, setSelectedCity] = useState('');
-  const [cityInput, setCityInput] = useState('');
-  const [filteredCities, setFilteredCities] = useState([]);
   const [strategy, setStrategy] = useState('SLG');
   const [bins, setBins] = useState({
     A: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
@@ -28,35 +26,12 @@ const AircraftLoadingForm = () => {
   });
 
   const [output, setOutput] = useState('');
-  const [alert, setAlert] = useState('');
-
-  useEffect(() => {
-    if (cityInput) {
-      const filtered = CITIES.filter(city =>
-        city.toLowerCase().includes(cityInput.toLowerCase())
-      );
-      setFilteredCities(filtered);
-    } else {
-      setFilteredCities([]);
-    }
-  }, [cityInput]);
 
   const handleInputChange = (type, value) => {
     setTotals(prev => ({ ...prev, [type]: parseInt(value) || 0 }));
   };
 
-  const handleCitySelect = (city) => {
-    setSelectedCity(city);
-    setCityInput(city);
-    setFilteredCities([]);
-  };
-
   const distributeBags = () => {
-    if (!selectedCity) {
-      setAlert("Please select a destination city before distributing bags.");
-      return;
-    }
-
     let newBins = {
       A: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
       B: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
@@ -79,7 +54,6 @@ const AircraftLoadingForm = () => {
     if (strategy === 'SLG') {
       newBins.C.count = Math.min(totals.local, BIN_CAPACITIES.C);
       newBins.D.count = Math.min(totals.transfer, BIN_CAPACITIES.D);
-      newBins.D.isTransfer = true;
     } else if (strategy === '50/50') {
       const halfLocal = Math.ceil(totals.local / 2);
       newBins.C.count = Math.min(halfLocal, BIN_CAPACITIES.C);
@@ -88,15 +62,7 @@ const AircraftLoadingForm = () => {
 
     newBins.C.city = selectedCity;
     newBins.D.city = selectedCity;
-
-    // Distribute freight (no capacity limit)
-    let remainingFreight = totals.freight;
-    ['D', 'C', 'E', 'F', 'A', 'B'].forEach(bin => {
-      if (remainingFreight > 0) {
-        newBins[bin].freight = remainingFreight;
-        remainingFreight = 0;
-      }
-    });
+    newBins.D.isTransfer = strategy === 'SLG';
 
     setBins(newBins);
     generateOutput(newBins);
@@ -111,34 +77,22 @@ const AircraftLoadingForm = () => {
       if (content.gateChecks > 0) {
         binContent.push(`${content.gateChecks} GC`);
       }
-      if (content.freight > 0) {
-        binContent.push(`${content.freight} F`);
-      }
       return `Bin ${bin}: ${binContent.length > 0 ? binContent.join(', ') : '-'}`;
     }).join('\n');
     setOutput(newOutput);
   };
 
-  const renderBinContents = (bin, content) => {
-    return (
-      <div>
-        <p>{content.count > 0 ? `${content.count} ${content.isTransfer ? 'X' : ''} ${content.city}` : '-'}</p>
-        {content.gateChecks > 0 && <p>{content.gateChecks} GC</p>}
-        {content.freight > 0 && <p>{content.freight} F</p>}
-      </div>
-    );
-  };
 
-  return (
-    <div className="max-w-2xl mx-auto p-4">
+return (
+    <div className="p-4 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">700 Aircraft Loading Form</h1>
       {alert && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-          <span className="block sm:inline">{alert}</span>
-        </div>
+        <Alert variant="destructive" className="mb-4">
+          <AlertDescription>{alert}</AlertDescription>
+        </Alert>
       )}
       <div className="relative mb-4">
-        <input
+        <Input
           type="text"
           placeholder="Type to search for a city"
           value={cityInput}
@@ -150,8 +104,8 @@ const AircraftLoadingForm = () => {
             {filteredCities.map((city) => (
               <li
                 key={city}
-                onClick={() => handleCitySelect(city)}
                 className="p-2 hover:bg-gray-100 cursor-pointer"
+                onClick={() => handleCitySelect(city)}
               >
                 {city}
               </li>
@@ -185,15 +139,15 @@ const AircraftLoadingForm = () => {
           onChange={(e) => handleInputChange('gateChecks', e.target.value)}
         />
       </div>
-      <select 
-        onChange={(e) => setStrategy(e.target.value)} 
-        className="w-full p-2 border rounded mb-4"
-        value={strategy}
-      >
-        <option value="">Select loading strategy</option>
-        <option value="SLG">Standard Loading Guidelines (SLG)</option>
-        <option value="50/50">50/50 Split</option>
-      </select>
+      <Select onValueChange={setStrategy}>
+        <SelectTrigger className="w-full mb-4">
+          <SelectValue placeholder="Select loading strategy" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="SLG">Standard Loading Guidelines (SLG)</SelectItem>
+          <SelectItem value="50/50">50/50 Split</SelectItem>
+        </SelectContent>
+      </Select>
       <button
         onClick={distributeBags}
         className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mb-4"
@@ -209,12 +163,9 @@ const AircraftLoadingForm = () => {
         ))}
       </div>
       {output && (
-        <pre className="bg-gray-100 p-2 rounded whitespace-pre-wrap">
+        <pre className="p-2 bg-gray-100 rounded whitespace-pre-wrap">
           {output}
         </pre>
       )}
     </div>
   );
-};
-
-export default AircraftLoadingForm;
