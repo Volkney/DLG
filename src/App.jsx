@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 const BIN_CAPACITIES = {
   A: 25, B: 10, C: 50, D: 80, E: 10, F: 10
@@ -115,13 +115,13 @@ const AircraftLoadingForm = () => {
     let newOutput = Object.entries(currentBins).map(([bin, content]) => {
       let binContent = [];
       if (content.count > 0) {
-        binContent.push(`${content.count} ${content.isTransfer ? 'X' : ''} ${content.city}`);
+        binContent.push(`${content.city} ${content.count} ${content.isTransfer ? 'X' : ''}`);
       }
       if (content.gateChecks > 0) {
-        binContent.push(`${content.gateChecks} GC`);
+        binContent.push(`GC ${content.gateChecks}`);
       }
       if (content.freight > 0) {
-        binContent.push(`${content.freight} F`);
+        binContent.push(`F ${content.freight}`);
       }
       return `Bin ${bin}: ${binContent.length > 0 ? binContent.join(', ') : '-'}`;
     }).join('\n');
