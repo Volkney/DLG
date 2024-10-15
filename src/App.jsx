@@ -90,7 +90,7 @@ const AircraftLoadingForm = () => {
 
   const distributeBags = () => {
     if (!selectedCity) {
-      setAlert("Please select a destination city before distributing bags.");
+      setAlert("Please select a destination city before distributing bags");
       return;
     }
 
