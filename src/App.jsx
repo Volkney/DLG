@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const BIN_CAPACITIES = {
   A: 25, B: 10, C: 50, D: 80, E: 10, F: 10
@@ -27,13 +27,14 @@ const AircraftLoadingForm = () => {
   const [cityInput, setCityInput] = useState('');
   const [filteredCities, setFilteredCities] = useState([]);
   const [strategy, setStrategy] = useState('SLG');
+  const [isReversed, setIsReversed] = useState(false);
   const [bins, setBins] = useState({
-    A: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-    B: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-    C: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-    D: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-    E: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-    F: { count: 0, isTransfer: false, city: '', gateChecks: 0 }
+    A: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+    B: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+    C: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+    D: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+    E: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+    F: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 }
   });
 
   const [output, setOutput] = useState('');
@@ -60,6 +61,33 @@ const AircraftLoadingForm = () => {
     setFilteredCities([]);
   };
 
+  const reverseCurrentDistribution = () => {
+    setBins(prevBins => {
+      const newBins = { ...prevBins };
+      // Swap C and D contents
+      [newBins.C, newBins.D] = [newBins.D, newBins.C];
+      // Reverse gate checks
+      const gateCheckOrder = ['B', 'A', 'C', 'D', 'E', 'F'];
+      const reversedGateChecks = gateCheckOrder.map(bin => newBins[bin].gateChecks).reverse();
+      gateCheckOrder.forEach((bin, index) => {
+        newBins[bin].gateChecks = reversedGateChecks[index];
+      });
+      // Reverse freight
+      const freightOrder = ['D', 'C', 'E', 'F', 'A', 'B'];
+      const reversedFreight = freightOrder.map(bin => newBins[bin].freight).reverse();
+      freightOrder.forEach((bin, index) => {
+        newBins[bin].freight = reversedFreight[index];
+      });
+      generateOutput(newBins);
+      return newBins;
+    });
+  };
+
+  const handleReverseToggle = (e) => {
+    setIsReversed(e.target.checked);
+    reverseCurrentDistribution();
+  };
+
   const distributeBags = () => {
     if (!selectedCity) {
       setAlert("Please select a destination city before distributing bags.");
@@ -67,17 +95,18 @@ const AircraftLoadingForm = () => {
     }
 
     let newBins = {
-      A: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-      B: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-      C: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-      D: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-      E: { count: 0, isTransfer: false, city: '', gateChecks: 0 },
-      F: { count: 0, isTransfer: false, city: '', gateChecks: 0 }
+      A: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+      B: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+      C: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+      D: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+      E: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
+      F: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 }
     };
 
     // Distribute gate checks
     let remainingGateChecks = totals.gateChecks;
-    ['B', 'A', 'C', 'D', 'E', 'F'].forEach(bin => {
+    const gateCheckOrder = ['B', 'A', 'C', 'D', 'E', 'F'];
+    gateCheckOrder.forEach(bin => {
       if (remainingGateChecks > 0) {
         newBins[bin].gateChecks = Math.min(remainingGateChecks, BIN_CAPACITIES[bin]);
         remainingGateChecks -= newBins[bin].gateChecks;
@@ -100,7 +129,8 @@ const AircraftLoadingForm = () => {
 
     // Distribute freight (no capacity limit)
     let remainingFreight = totals.freight;
-    ['D', 'C', 'E', 'F', 'A', 'B'].forEach(bin => {
+    const freightOrder = ['D', 'C', 'E', 'F', 'A', 'B'];
+    freightOrder.forEach(bin => {
       if (remainingFreight > 0) {
         newBins[bin].freight = remainingFreight;
         remainingFreight = 0;
@@ -108,7 +138,11 @@ const AircraftLoadingForm = () => {
     });
 
     setBins(newBins);
-    generateOutput(newBins);
+    if (isReversed) {
+      reverseCurrentDistribution();
+    } else {
+      generateOutput(newBins);
+    }
   };
 
   const generateOutput = (currentBins) => {
@@ -194,15 +228,26 @@ const AircraftLoadingForm = () => {
           onChange={(e) => handleInputChange('gateChecks', e.target.value)}
         />
       </div>
-      <select 
-        onChange={(e) => setStrategy(e.target.value)} 
-        className="w-full p-2 border rounded mb-4"
-        value={strategy}
-      >
-        <option value="">Select loading strategy</option>
-        <option value="SLG">Standard Loading Guidelines (SLG)</option>
-        <option value="50/50">50/50 Split</option>
-      </select>
+      <div className="flex items-center justify-between mb-4">
+        <select 
+          onChange={(e) => setStrategy(e.target.value)} 
+          className="w-1/2 p-2 border rounded"
+          value={strategy}
+        >
+          <option value="">Select loading strategy</option>
+          <option value="SLG">Standard Loading Guidelines (SLG)</option>
+          <option value="50/50">50/50 Split</option>
+        </select>
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={isReversed}
+            onChange={handleReverseToggle}
+            className="mr-2"
+          />
+          Reverse
+        </label>
+      </div>
       <button
         onClick={distributeBags}
         className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mb-4"
