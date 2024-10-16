@@ -39,6 +39,7 @@ const AircraftLoadingForm = () => {
 
   const [output, setOutput] = useState('');
   const [alert, setAlert] = useState('');
+  const [warning, setWarning] = useState('');
 
   useEffect(() => {
     if (cityInput) {
@@ -53,6 +54,17 @@ const AircraftLoadingForm = () => {
 
   const handleInputChange = (type, value) => {
     setTotals(prev => ({ ...prev, [type]: parseInt(value) || 0 }));
+  };
+
+  const handleCityInputChange = (e) => {
+    setCityInput(e.target.value);
+  };
+
+
+  const handleCityInputKeyDown = (e) => {
+    if (e.key === 'Enter' && filteredCities.length > 0) {
+      handleCitySelect(filteredCities[0]);
+    }
   };
 
   const handleCitySelect = (city) => {
@@ -94,6 +106,8 @@ const AircraftLoadingForm = () => {
       return;
     }
 
+    setWarning(''); // Clear any previous warnings
+
     let newBins = {
       A: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
       B: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
@@ -115,17 +129,48 @@ const AircraftLoadingForm = () => {
 
     // Distribute bags based on strategy
     if (strategy === 'SLG') {
-      newBins.C.count = Math.min(totals.local, BIN_CAPACITIES.C);
-      newBins.D.count = Math.min(totals.transfer, BIN_CAPACITIES.D);
-      newBins.D.isTransfer = true;
+      // Distribute local bags to forward bins (C, A, B)
+      let remainingLocal = totals.local;
+      const localBinOrder = ['C', 'A', 'B'];
+      localBinOrder.forEach(bin => {
+        if (remainingLocal > 0) {
+          newBins[bin].count = Math.min(remainingLocal, BIN_CAPACITIES[bin]);
+          remainingLocal -= newBins[bin].count;
+        }
+      });
+
+      // Check if there are still remaining local bags
+      if (remainingLocal > 0) {
+        setWarning(`Warning: ${remainingLocal} local bags could not be accommodated in forward bins.`);
+      }
+
+      // Distribute transfer bags to aft bins (D, E, F)
+      let remainingTransfer = totals.transfer;
+      const transferBinOrder = ['D', 'E', 'F'];
+      transferBinOrder.forEach(bin => {
+        if (remainingTransfer > 0) {
+          newBins[bin].count = Math.min(remainingTransfer, BIN_CAPACITIES[bin]);
+          newBins[bin].isTransfer = true;
+          remainingTransfer -= newBins[bin].count;
+        }
+      });
+
+      // Check if there are still remaining transfer bags
+      if (remainingTransfer > 0) {
+        setWarning(prev => prev + `\nWarning: ${remainingTransfer} transfer bags could not be accommodated in aft bins.`);
+      }
     } else if (strategy === '50/50') {
       const halfLocal = Math.ceil(totals.local / 2);
       newBins.C.count = Math.min(halfLocal, BIN_CAPACITIES.C);
       newBins.D.count = Math.min(totals.local - newBins.C.count, BIN_CAPACITIES.D);
     }
 
-    newBins.C.city = selectedCity;
-    newBins.D.city = selectedCity;
+    // Set city for all bins that have bags
+    Object.keys(newBins).forEach(bin => {
+      if (newBins[bin].count > 0) {
+        newBins[bin].city = selectedCity;
+      }
+    });
 
     // Distribute freight (no capacity limit)
     let remainingFreight = totals.freight;
@@ -180,12 +225,18 @@ const AircraftLoadingForm = () => {
           <span className="block sm:inline">{alert}</span>
         </div>
       )}
+      {warning && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <span className="block sm:inline">{warning}</span>
+        </div>
+      )}
       <div className="relative mb-4">
         <input
           type="text"
           placeholder="Type to search for a city"
           value={cityInput}
-          onChange={(e) => setCityInput(e.target.value)}
+          onChange={handleCityInputChange}
+          onKeyDown={handleCityInputKeyDown}
           className="w-full p-2 border rounded"
         />
         {filteredCities.length > 0 && (
