@@ -105,9 +105,9 @@ const AircraftLoadingForm = () => {
       setAlert("Please select a destination city before distributing bags");
       return;
     }
-
+  
     setWarning(''); // Clear any previous warnings
-
+  
     let newBins = {
       A: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
       B: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
@@ -116,7 +116,7 @@ const AircraftLoadingForm = () => {
       E: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
       F: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 }
     };
-
+  
     // Distribute gate checks
     let remainingGateChecks = totals.gateChecks;
     const gateCheckOrder = ['B', 'A', 'C', 'D', 'E', 'F'];
@@ -126,7 +126,7 @@ const AircraftLoadingForm = () => {
         remainingGateChecks -= newBins[bin].gateChecks;
       }
     });
-
+  
     // Distribute bags based on strategy
     if (strategy === 'SLG') {
       // Distribute local bags to forward bins (C, A, B)
@@ -138,12 +138,12 @@ const AircraftLoadingForm = () => {
           remainingLocal -= newBins[bin].count;
         }
       });
-
+  
       // Check if there are still remaining local bags
       if (remainingLocal > 0) {
-        setWarning(`Warning: ${remainingLocal} local bags could not be accommodated in forward bins.`);
+        setWarning(prev => prev + `Warning: ${remainingLocal} local bags could not be accommodated in forward bins.\n`);
       }
-
+  
       // Distribute transfer bags to aft bins (D, E, F)
       let remainingTransfer = totals.transfer;
       const transferBinOrder = ['D', 'E', 'F'];
@@ -154,24 +154,49 @@ const AircraftLoadingForm = () => {
           remainingTransfer -= newBins[bin].count;
         }
       });
-
+  
       // Check if there are still remaining transfer bags
       if (remainingTransfer > 0) {
-        setWarning(prev => prev + `\nWarning: ${remainingTransfer} transfer bags could not be accommodated in aft bins.`);
+        setWarning(prev => prev + `Warning: ${remainingTransfer} transfer bags could not be accommodated in aft bins.\n`);
       }
     } else if (strategy === '50/50') {
-      const halfLocal = Math.ceil(totals.local / 2);
+      let remainingLocal = totals.local;
+      let remainingTransfer = totals.transfer;
+      
+      // Distribute local bags evenly between C and D
+      const halfLocal = Math.ceil(remainingLocal / 2);
       newBins.C.count = Math.min(halfLocal, BIN_CAPACITIES.C);
-      newBins.D.count = Math.min(totals.local - newBins.C.count, BIN_CAPACITIES.D);
+      remainingLocal -= newBins.C.count;
+      
+      newBins.D.count = Math.min(remainingLocal, BIN_CAPACITIES.D);
+      remainingLocal -= newBins.D.count;
+  
+      // Add transfer bags to bin D if there's space, keeping them separate
+      if (remainingTransfer > 0) {
+        const availableSpaceInD = BIN_CAPACITIES.D - newBins.D.count;
+        const transferToBinD = Math.min(remainingTransfer, availableSpaceInD);
+        if (transferToBinD > 0) {
+          newBins.D.transferCount = transferToBinD;
+          remainingTransfer -= transferToBinD;
+        }
+      }
+  
+      // Check if there are still remaining bags
+      if (remainingLocal > 0) {
+        setWarning(prev => prev + `Warning: ${remainingLocal} local bags could not be accommodated.\n`);
+      }
+      if (remainingTransfer > 0) {
+        setWarning(prev => prev + `Warning: ${remainingTransfer} transfer bags could not be accommodated.\n`);
+      }
     }
-
+  
     // Set city for all bins that have bags
     Object.keys(newBins).forEach(bin => {
-      if (newBins[bin].count > 0) {
+      if (newBins[bin].count > 0 || (bin === 'D' && newBins[bin].transferCount > 0)) {
         newBins[bin].city = selectedCity;
       }
     });
-
+  
     // Distribute freight (no capacity limit)
     let remainingFreight = totals.freight;
     const freightOrder = ['D', 'C', 'E', 'F', 'A', 'B'];
@@ -181,7 +206,7 @@ const AircraftLoadingForm = () => {
         remainingFreight = 0;
       }
     });
-
+  
     setBins(newBins);
     if (isReversed) {
       reverseCurrentDistribution();
@@ -190,22 +215,26 @@ const AircraftLoadingForm = () => {
     }
   };
 
-  const generateOutput = (currentBins) => {
-    let newOutput = Object.entries(currentBins).map(([bin, content]) => {
-      let binContent = [];
-      if (content.count > 0) {
-        binContent.push(`${content.city} ${content.count} ${content.isTransfer ? 'X' : ''}`);
-      }
-      if (content.gateChecks > 0) {
-        binContent.push(`GC ${content.gateChecks}`);
-      }
-      if (content.freight > 0) {
-        binContent.push(`F ${content.freight}`);
-      }
-      return `Bin ${bin}: ${binContent.length > 0 ? binContent.join(', ') : '-'}`;
-    }).join('\n');
-    setOutput(newOutput);
-  };
+
+const generateOutput = (currentBins) => {
+  let newOutput = Object.entries(currentBins).map(([bin, content]) => {
+    let binContent = [];
+    if (content.count > 0) {
+      binContent.push(`${content.city} ${content.count}${content.isTransfer ? ' X' : ''}`);
+    }
+    if (content.transferCount && content.transferCount > 0) {
+      binContent.push(`${content.city} ${content.transferCount} X`);
+    }
+    if (content.gateChecks > 0) {
+      binContent.push(`GC ${content.gateChecks}`);
+    }
+    if (content.freight > 0) {
+      binContent.push(`F ${content.freight}`);
+    }
+    return `Bin ${bin}: ${binContent.length > 0 ? binContent.join(', ') : '-'}`;
+  }).join('\n');
+  setOutput(newOutput);
+};
 
   const renderBinContents = (bin, content) => {
     return (
