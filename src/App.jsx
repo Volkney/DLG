@@ -40,6 +40,7 @@ const AircraftLoadingForm = () => {
   const [output, setOutput] = useState('');
   const [alert, setAlert] = useState('');
   const [warning, setWarning] = useState('');
+  const [freightInput, setFreightInput] = useState('');
 
   useEffect(() => {
     if (cityInput) {
@@ -52,18 +53,16 @@ const AircraftLoadingForm = () => {
     }
   }, [cityInput]);
 
+
+
   const handleInputChange = (type, value) => {
     if (type === 'freight') {
-      // Split the input by comma to allow multiple freight entries
-      const freightEntries = value.split(',').map(entry => {
-        const [pieces, weight] = entry.trim().split('/');
-        return { pieces: parseInt(pieces) || 0, weight: parseInt(weight) || 0 };
-      });
-      setTotals(prev => ({ ...prev, [type]: freightEntries }));
+      setFreightInput(value);
     } else {
       setTotals(prev => ({ ...prev, [type]: parseInt(value) || 0 }));
     }
   };
+  
 
   const handleCityInputChange = (e) => {
     setCityInput(e.target.value);
@@ -118,12 +117,12 @@ const AircraftLoadingForm = () => {
     setWarning(''); // Clear any previous warnings
   
     let newBins = {
-      A: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-      B: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-      C: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-      D: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-      E: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-      F: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 }
+      A: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
+      B: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
+      C: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
+      D: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
+      E: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
+      F: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] }
     };
   
     // Distribute gate checks
@@ -211,7 +210,7 @@ const AircraftLoadingForm = () => {
     const freightOrder = ['D', 'C', 'E', 'F', 'A', 'B'];
     freightOrder.forEach(bin => {
       if (remainingFreight.length > 0) {
-        newBins[bin].freight = remainingFreight.shift();
+        newBins[bin].freight.push(remainingFreight.shift());
       }
     });
   
@@ -222,7 +221,6 @@ const AircraftLoadingForm = () => {
       generateOutput(newBins);
     }
   };
-
 
   const generateOutput = (currentBins) => {
     let newOutput = Object.entries(currentBins).map(([bin, content]) => {
@@ -236,127 +234,183 @@ const AircraftLoadingForm = () => {
       if (content.gateChecks > 0) {
         binContent.push(`GC ${content.gateChecks}`);
       }
-      if (content.freight && content.freight.pieces > 0) {
-        binContent.push(`F ${content.freight.pieces}/${content.freight.weight}`);
+      if (content.freight && content.freight.length > 0) {
+        content.freight.forEach(f => {
+          if (f.pieces > 0) {
+            binContent.push(`F ${f.pieces}/${f.weight}`);
+          }
+        });
       }
       return `Bin ${bin}: ${binContent.length > 0 ? binContent.join(', ') : '-'}`;
     }).join('\n');
     setOutput(newOutput);
   };
 
-const renderBinContents = (bin, content) => {
-  return (
-    <div>
-      <p>{content.count > 0 ? `${content.count} ${content.isTransfer ? 'X' : ''} ${content.city}` : '-'}</p>
-      {content.gateChecks > 0 && <p>{content.gateChecks} GC</p>}
-      {content.freight && content.freight.pieces > 0 && <p>F {content.freight.pieces}/{content.freight.weight}</p>}
-    </div>
-  );
-};
+  const renderBinContents = (bin, content) => {
+    return (
+      <div>
+        <p>{content.count > 0 ? `${content.count} ${content.isTransfer ? 'X' : ''} ${content.city}` : '-'}</p>
+        {content.gateChecks > 0 && <p>{content.gateChecks} GC</p>}
+        {content.freight && (
+          Array.isArray(content.freight) 
+            ? content.freight.map((f, index) => 
+                f.pieces > 0 && <p key={index}>F {f.pieces}/{f.weight}</p>
+              )
+            : content.freight.pieces > 0 && <p>F {content.freight.pieces}/{content.freight.weight}</p>
+        )}
+      </div>
+    );
+  };
 
-return (
-  <div className="max-w-2xl mx-auto p-4">
-    <h1 className="text-2xl font-bold mb-4">700 Aircraft Loading Form</h1>
-    {alert && (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-        <span className="block sm:inline">{alert}</span>
+  const addFreightEntry = () => {
+    const [pieces, weight] = freightInput.split('/');
+    if (pieces && weight && !isNaN(pieces) && !isNaN(weight)) {
+      setTotals(prev => ({
+        ...prev,
+        freight: [...prev.freight, { pieces: parseInt(pieces), weight: parseInt(weight) }]
+      }));
+      setFreightInput('');
+    } else {
+      // Optionally, you can set an alert or warning here for invalid input
+      console.log('Invalid freight input');
+    }
+  };
+  
+  
+  const removeFreightEntry = (index) => {
+    setTotals(prev => ({
+      ...prev,
+      freight: prev.freight.filter((_, i) => i !== index)
+    }));
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">700 Aircraft Loading Form</h1>
+      {alert && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <span className="block sm:inline">{alert}</span>
+        </div>
+      )}
+      {warning && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <span className="block sm:inline">{warning}</span>
+        </div>
+      )}
+      <div className="relative mb-4">
+        <input
+          type="text"
+          placeholder="Type to search for a city"
+          value={cityInput}
+          onChange={handleCityInputChange}
+          onKeyDown={handleCityInputKeyDown}
+          className="w-full p-2 border rounded"
+        />
+        {filteredCities.length > 0 && (
+          <ul className="absolute z-10 w-full bg-white border border-gray-300 mt-1 max-h-60 overflow-auto">
+            {filteredCities.map((city) => (
+              <li
+                key={city}
+                onClick={() => handleCitySelect(city)}
+                className="p-2 hover:bg-gray-100 cursor-pointer"
+              >
+                {city}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-    )}
-    {warning && (
-      <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative mb-4" role="alert">
-        <span className="block sm:inline">{warning}</span>
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        <input
+          type="number"
+          placeholder="Local Bags"
+          className="p-2 border rounded"
+          onChange={(e) => handleInputChange('local', e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Transfer Bags (X)"
+          className="p-2 border rounded"
+          onChange={(e) => handleInputChange('transfer', e.target.value)}
+        />
+        <div className="flex items-center">
+          <input
+            type="text"
+            placeholder="Freight (F) pieces/weight, e.g. 10/850"
+            className="p-2 border rounded flex-grow"
+            value={freightInput}
+            onChange={(e) => handleInputChange('freight', e.target.value)}
+          />
+          <button
+            onClick={addFreightEntry}
+            className="ml-2 bg-blue-500 text-white p-2 rounded"
+          >
+            +
+          </button>
+        </div>
+        <input
+          type="number"
+          placeholder="Gate Checks (GC)"
+          className="p-2 border rounded"
+          onChange={(e) => handleInputChange('gateChecks', e.target.value)}
+        />
       </div>
-    )}
-    <div className="relative mb-4">
-      <input
-        type="text"
-        placeholder="Type to search for a city"
-        value={cityInput}
-        onChange={handleCityInputChange}
-        onKeyDown={handleCityInputKeyDown}
-        className="w-full p-2 border rounded"
-      />
-      {filteredCities.length > 0 && (
-        <ul className="absolute z-10 w-full bg-white border border-gray-300 mt-1 max-h-60 overflow-auto">
-          {filteredCities.map((city) => (
-            <li
-              key={city}
-              onClick={() => handleCitySelect(city)}
-              className="p-2 hover:bg-gray-100 cursor-pointer"
-            >
-              {city}
-            </li>
-          ))}
-        </ul>
+      <div className="mb-4">
+        {totals.freight.map((entry, index) => (
+          <div key={index} className="mb-2">
+            F {entry.pieces}/{entry.weight}
+            {index > 0 && (
+              <button
+                onClick={() => removeFreightEntry(index)}
+                className="ml-2 text-red-500"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between mb-4">
+        <select 
+          onChange={(e) => setStrategy(e.target.value)} 
+          className="w-1/2 p-2 border rounded"
+          value={strategy}
+        >
+          <option value="">Select loading strategy</option>
+          <option value="SLG">Standard Loading Guidelines (SLG)</option>
+          <option value="50/50">50/50 Split</option>
+        </select>
+        <label className="flex items-center">
+          <input
+            type="checkbox"
+            checked={isReversed}
+            onChange={handleReverseToggle}
+            className="mr-2"
+          />
+          Reverse
+        </label>
+      </div>
+      <button
+        onClick={distributeBags}
+        className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mb-4"
+      >
+        Distribute Bags
+      </button>
+      <div className="grid grid-cols-3 gap-4 mb-4">
+        {Object.entries(bins).map(([bin, content]) => (
+          <div key={bin} className="border p-2 rounded">
+            <h3 className="font-bold mb-2">Bin {bin}</h3>
+            {renderBinContents(bin, content)}
+          </div>
+        ))}
+      </div>
+      {output && (
+        <pre className="bg-gray-100 p-2 rounded whitespace-pre-wrap">
+          {output}
+        </pre>
       )}
     </div>
-    <div className="grid grid-cols-2 gap-4 mb-4">
-      <input
-        type="number"
-        placeholder="Local Bags"
-        className="p-2 border rounded"
-        onChange={(e) => handleInputChange('local', e.target.value)}
-      />
-      <input
-        type="number"
-        placeholder="Transfer Bags (X)"
-        className="p-2 border rounded"
-        onChange={(e) => handleInputChange('transfer', e.target.value)}
-      />
-      <input
-        type="text"
-        placeholder="Freight (F) pieces/weight, e.g. 10/850"
-        className="p-2 border rounded"
-        onChange={(e) => handleInputChange('freight', e.target.value)}
-      />
-      <input
-        type="number"
-        placeholder="Gate Checks (GC)"
-        className="p-2 border rounded"
-        onChange={(e) => handleInputChange('gateChecks', e.target.value)}
-      />
-    </div>
-    <div className="flex items-center justify-between mb-4">
-      <select 
-        onChange={(e) => setStrategy(e.target.value)} 
-        className="w-1/2 p-2 border rounded"
-        value={strategy}
-      >
-        <option value="">Select loading strategy</option>
-        <option value="SLG">Standard Loading Guidelines (SLG)</option>
-        <option value="50/50">50/50 Split</option>
-      </select>
-      <label className="flex items-center">
-        <input
-          type="checkbox"
-          checked={isReversed}
-          onChange={handleReverseToggle}
-          className="mr-2"
-        />
-        Reverse
-      </label>
-    </div>
-    <button
-      onClick={distributeBags}
-      className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mb-4"
-    >
-      Distribute Bags
-    </button>
-    <div className="grid grid-cols-3 gap-4 mb-4">
-      {Object.entries(bins).map(([bin, content]) => (
-        <div key={bin} className="border p-2 rounded">
-          <h3 className="font-bold mb-2">Bin {bin}</h3>
-          {renderBinContents(bin, content)}
-        </div>
-      ))}
-    </div>
-    {output && (
-      <pre className="bg-gray-100 p-2 rounded whitespace-pre-wrap">
-        {output}
-      </pre>
-    )}
-  </div>
-);
+  );
 };
 
 export default AircraftLoadingForm;
