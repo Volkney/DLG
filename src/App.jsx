@@ -262,20 +262,19 @@ const AircraftLoadingForm = () => {
     );
   };
 
-  const addFreightEntry = () => {
-    const [pieces, weight] = freightInput.split('/');
-    if (pieces && weight && !isNaN(pieces) && !isNaN(weight)) {
-      setTotals(prev => ({
-        ...prev,
-        freight: [...prev.freight, { pieces: parseInt(pieces), weight: parseInt(weight) }]
-      }));
-      setFreightInput('');
-    } else {
-      // Optionally, you can set an alert or warning here for invalid input
-      console.log('Invalid freight input');
-    }
-  };
-  
+const addFreightEntry = () => {
+  const [pieces, weight] = freightInput.split('/');
+  if (pieces && weight && !isNaN(pieces) && !isNaN(weight)) {
+    setTotals(prev => ({
+      ...prev,
+      freight: [...prev.freight, { pieces: parseInt(pieces), weight: parseInt(weight) }]
+    }));
+    setFreightInput('');
+  } else {
+    // Optionally, you can set an alert or warning here for invalid input
+    console.log('Invalid freight input');
+  }
+};
   
   const removeFreightEntry = (index) => {
     setTotals(prev => ({
