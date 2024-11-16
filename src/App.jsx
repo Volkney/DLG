@@ -13,7 +13,6 @@ const AircraftLoadingForm = () => {
 
   const [selectedCity, setSelectedCity] = useState('');
   const [cityInput, setCityInput] = useState('');
-  const [filteredCities, setFilteredCities] = useState([]);
   const [strategy, setStrategy] = useState('SLG');
   const [isReversed, setIsReversed] = useState(false);
   const [bins, setBins] = useState({
