@@ -1,20 +1,7 @@
 import { useState, useEffect } from 'react';
 import DraggableBinLayout from './components/DraggableBinLayout'
-
-const BIN_CAPACITIES = {
-  A: 25, B: 10, C: 50, D: 80, E: 10, F: 10
-};
-
-const CITIES = [
-  "ABQ", "ALB", "AMA", "ATL", "AUA", "AUS", "BDL", "BHM", "BNA", "BOI", "BOS", "BUF", "BUR", "BWI", "BZE", "BZN",
-  "CHS", "CLE", "CLT", "CMH", "COS", "CRP", "CUN", "CVG", "DAL", "DCA", "DEN", "DSM", "DTW", "ECP", "ELP", "EUG",
-  "FAT", "FLL", "GCM", "GEG", "GRR", "GSP", "HAV", "HDN", "HNL", "HOU", "HRL", "IAD", "ICT", "IND", "ISP", "ITO",
-  "JAN", "JAX", "KOA", "LAS", "LAX", "LIH", "LBB", "LGA", "LGB", "LIR", "LIT", "MAF", "MBJ", "MCI", "MCO", "MDW",
-  "MEM", "MHT", "MIA", "MKE", "MSP", "MSY", "MTJ", "MYR", "NAS", "OAK", "OGG", "OKC", "OMA", "ONT", "ORD", "ORF",
-  "PBI", "PDX", "PHL", "PHX", "PIT", "PLS", "PNS", "PSP", "PUJ", "PVD", "PVR", "PWM", "RDU", "RIC", "RNO", "ROC",
-  "RSW", "SAN", "SAT", "SAV", "SBA", "SDF", "SEA", "SFO", "SJC", "SJD", "SJO", "SJU", "SLC", "SMF", "SNA", "SRQ",
-  "STL", "TPA", "TUL", "TUS", "VPS"
-];
+import { BIN_CAPACITIES, CITIES } from './components/constants/constants'
+import CitySearch from './components/citySearch';
 
 const AircraftLoadingForm = () => {
   const [totals, setTotals] = useState({
@@ -42,18 +29,7 @@ const AircraftLoadingForm = () => {
   const [alert, setAlert] = useState('');
   const [warning, setWarning] = useState('');
   const [freightInput, setFreightInput] = useState('');
-
-  useEffect(() => {
-    if (cityInput) {
-      const filtered = CITIES.filter(city =>
-        city.toLowerCase().includes(cityInput.toLowerCase())
-      );
-      setFilteredCities(filtered);
-    } else {
-      setFilteredCities([]);
-    }
-  }, [cityInput]);
-
+  
   // new section
 
   const handleBinContentMove = (fromBinId, toBinId, content) => {
@@ -109,24 +85,6 @@ const AircraftLoadingForm = () => {
     } else {
       setTotals(prev => ({ ...prev, [type]: parseInt(value) || 0 }));
     }
-  };
-  
-
-  const handleCityInputChange = (e) => {
-    setCityInput(e.target.value);
-  };
-
-
-  const handleCityInputKeyDown = (e) => {
-    if (e.key === 'Enter' && filteredCities.length > 0) {
-      handleCitySelect(filteredCities[0]);
-    }
-  };
-
-  const handleCitySelect = (city) => {
-    setSelectedCity(city);
-    setCityInput(city);
-    setFilteredCities([]);
   };
 
   const reverseCurrentDistribution = () => {
@@ -330,29 +288,12 @@ const AircraftLoadingForm = () => {
           <span className="block sm:inline">{warning}</span>
         </div>
       )}
-      <div className="relative mb-4">
-        <input
-          type="text"
-          placeholder="Type to search for a city"
-          value={cityInput}
-          onChange={handleCityInputChange}
-          onKeyDown={handleCityInputKeyDown}
-          className="w-full p-2 border rounded"
-        />
-        {filteredCities.length > 0 && (
-          <ul className="absolute z-10 w-full bg-white border border-gray-300 mt-1 max-h-60 overflow-auto">
-            {filteredCities.map((city) => (
-              <li
-                key={city}
-                onClick={() => handleCitySelect(city)}
-                className="p-2 hover:bg-gray-100 cursor-pointer"
-              >
-                {city}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <CitySearch
+        selectedCity={selectedCity}
+        setSelectedCity={setSelectedCity}
+        cityInput={cityInput}
+        setCityInput={setCityInput}
+      />
       <div className="grid grid-cols-2 gap-4 mb-4">
         <input
           type="number"
