@@ -36,7 +36,7 @@ const AircraftLoadingForm = () => {
     setBins((prevBins) => {
       const newBins = { ...prevBins };
   
-      // Handle gate checks (GC)
+      // Handle gate checks (Gate checks)
       if (content.includes('GC')) {
         const gcCount = parseInt(content.split(' ')[1]);
         newBins[fromBinId].gateChecks -= gcCount;
