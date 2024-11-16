@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import DraggableBinLayout from './components/DraggableBinLayout'
-import { BIN_CAPACITIES, CITIES } from './components/constants/constants'
-import CitySearch from './components/citySearch';
+import { BIN_CAPACITIES } from './components/constants/constants'
+import CitySearch from './components/citySearch.jsx';
 
 const AircraftLoadingForm = () => {
   const [totals, setTotals] = useState({
