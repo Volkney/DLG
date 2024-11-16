@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import DraggableBinLayout from './components/DraggableBinLayout'
 
 const BIN_CAPACITIES = {
   A: 25, B: 10, C: 50, D: 80, E: 10, F: 10
@@ -53,7 +54,54 @@ const AircraftLoadingForm = () => {
     }
   }, [cityInput]);
 
+  // new section
 
+  const handleBinContentMove = (fromBinId, toBinId, content) => {
+    setBins(prevBins => {
+      const newBins = { ...prevBins };
+      
+      // Parse the content to determine what's being moved
+      if (content.includes('GC')) {
+        // Moving gate checks
+        const gcCount = parseInt(content.split(' ')[1]);
+        newBins[fromBinId].gateChecks -= gcCount;
+        newBins[toBinId].gateChecks += gcCount;
+      } else if (content.includes('F')) {
+        // Moving freight
+        const [_, pieces, weight] = content.match(/F (\d+)\/(\d+)/);
+        const freightItem = { pieces: parseInt(pieces), weight: parseInt(weight) };
+        newBins[fromBinId].freight = newBins[fromBinId].freight.filter(f =>
+          f.pieces !== freightItem.pieces && f.weight !== freightItem.weight
+        );
+        newBins[toBinId].freight.push(freightItem);
+      } else if (content.includes('X')) {
+        // Moving transfer bags
+        const count = parseInt(content.split(' ')[1]);
+        const city = content.split(' ')[0];
+        newBins[fromBinId].count -= count;
+        newBins[fromBinId].isTransfer = false;
+        newBins[toBinId].count += count;
+        newBins[toBinId].isTransfer = true;
+        newBins[toBinId].city = city;
+      } else if (content !== '-') {
+        // Moving local bags
+        const [city, count] = content.split(' ');
+        newBins[fromBinId].count -= parseInt(count);
+        newBins[toBinId].count += parseInt(count);
+        newBins[toBinId].city = city;
+      }
+  
+      // Clean up empty bins
+      if (newBins[fromBinId].count === 0) {
+        newBins[fromBinId].city = '';
+        newBins[fromBinId].isTransfer = false;
+      }
+  
+      generateOutput(newBins);
+      return newBins;
+    });
+  };
+  // new section
 
   const handleInputChange = (type, value) => {
     if (type === 'freight') {
@@ -246,35 +294,21 @@ const AircraftLoadingForm = () => {
     setOutput(newOutput);
   };
 
-  const renderBinContents = (bin, content) => {
-    return (
-      <div>
-        <p>{content.count > 0 ? `${content.count} ${content.isTransfer ? 'X' : ''} ${content.city}` : '-'}</p>
-        {content.gateChecks > 0 && <p>{content.gateChecks} GC</p>}
-        {content.freight && (
-          Array.isArray(content.freight) 
-            ? content.freight.map((f, index) => 
-                f.pieces > 0 && <p key={index}>F {f.pieces}/{f.weight}</p>
-              )
-            : content.freight.pieces > 0 && <p>F {content.freight.pieces}/{content.freight.weight}</p>
-        )}
-      </div>
-    );
-  };
 
-const addFreightEntry = () => {
-  const [pieces, weight] = freightInput.split('/');
-  if (pieces && weight && !isNaN(pieces) && !isNaN(weight)) {
-    setTotals(prev => ({
-      ...prev,
-      freight: [...prev.freight, { pieces: parseInt(pieces), weight: parseInt(weight) }]
-    }));
-    setFreightInput('');
-  } else {
-    // Optionally, you can set an alert or warning here for invalid input
-    console.log('Invalid freight input');
-  }
-};
+
+  const addFreightEntry = () => {
+    const [pieces, weight] = freightInput.split('/');
+    if (pieces && weight && !isNaN(pieces) && !isNaN(weight)) {
+      setTotals(prev => ({
+        ...prev,
+        freight: [...prev.freight, { pieces: parseInt(pieces), weight: parseInt(weight) }]
+      }));
+      setFreightInput('');
+    } else {
+      // Optionally, you can set an alert or warning here for invalid input
+      console.log('Invalid freight input');
+    }
+  };
   
   const removeFreightEntry = (index) => {
     setTotals(prev => ({
@@ -370,8 +404,8 @@ const addFreightEntry = () => {
         ))}
       </div>
       <div className="flex items-center justify-between mb-4">
-        <select 
-          onChange={(e) => setStrategy(e.target.value)} 
+        <select
+          onChange={(e) => setStrategy(e.target.value)}
           className="w-1/2 p-2 border rounded"
           value={strategy}
         >
@@ -395,21 +429,28 @@ const addFreightEntry = () => {
       >
         Distribute Bags
       </button>
-      <div className="grid grid-cols-3 gap-4 mb-4">
-        {Object.entries(bins).map(([bin, content]) => (
-          <div key={bin} className="border p-2 rounded">
-            <h3 className="font-bold mb-2">Bin {bin}</h3>
-            {renderBinContents(bin, content)}
+      
+      {/* Two column layout for draggable content and output */}
+      <div className="grid grid-cols-2 gap-8">
+        {/* Left column - Single column draggable content */}
+        <div>
+          <DraggableBinLayout
+            bins={bins}
+            output={output}
+            onContentMove={handleBinContentMove}
+          />
+        </div>
+        
+        {/* Right column - Output */}
+        {output && (
+          <div className='my-6'>
+            <pre className="bg-gray-100 p-2 rounded whitespace-pre-wrap my-6">
+              {output}
+            </pre>
           </div>
-        ))}
+        )}
       </div>
-      {output && (
-        <pre className="bg-gray-100 p-2 rounded whitespace-pre-wrap">
-          {output}
-        </pre>
-      )}
     </div>
   );
-};
-
+}
 export default AircraftLoadingForm;
