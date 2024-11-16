@@ -40,7 +40,9 @@ const DraggableBinLayout = ({ bins, output, onContentMove }) => {
     
     if (!draggedContent || draggedContent.binId === targetBinId) return;
 
+    // Here, we handle the actual move: add the dragged content to the target bin
     onContentMove(draggedContent.binId, targetBinId, draggedContent.content);
+
     setDraggedContent(null);
   };
 
@@ -63,7 +65,6 @@ const DraggableBinLayout = ({ bins, output, onContentMove }) => {
 
   return (
     <div className="font-mono text-sm">
-      {/* All Bins in a single column */}
       <div>
         {parsedOutput.map(({ id, contents }) => (
           <div
@@ -85,6 +86,6 @@ const DraggableBinLayout = ({ bins, output, onContentMove }) => {
       </div>
     </div>
   );
-}  
+};
 
 export default DraggableBinLayout;

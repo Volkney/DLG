@@ -17,12 +17,12 @@ const AircraftLoadingForm = () => {
   const [strategy, setStrategy] = useState('SLG');
   const [isReversed, setIsReversed] = useState(false);
   const [bins, setBins] = useState({
-    A: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-    B: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-    C: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-    D: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-    E: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 },
-    F: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: 0 }
+    A: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    B: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    C: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    D: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    E: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    F: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] }
   });
 
   const [output, setOutput] = useState('');
@@ -33,50 +33,76 @@ const AircraftLoadingForm = () => {
   // new section
 
   const handleBinContentMove = (fromBinId, toBinId, content) => {
-    setBins(prevBins => {
+    setBins((prevBins) => {
       const newBins = { ...prevBins };
-      
-      // Parse the content to determine what's being moved
+  
+      // Handle gate checks (GC)
       if (content.includes('GC')) {
-        // Moving gate checks
         const gcCount = parseInt(content.split(' ')[1]);
         newBins[fromBinId].gateChecks -= gcCount;
         newBins[toBinId].gateChecks += gcCount;
+  
+      // Handle freight (F)
       } else if (content.includes('F')) {
-        // Moving freight
         const [_, pieces, weight] = content.match(/F (\d+)\/(\d+)/);
         const freightItem = { pieces: parseInt(pieces), weight: parseInt(weight) };
-        newBins[fromBinId].freight = newBins[fromBinId].freight.filter(f =>
-          f.pieces !== freightItem.pieces && f.weight !== freightItem.weight
+  
+        // Remove freight from source bin
+        newBins[fromBinId].freight = newBins[fromBinId].freight.filter(
+          (f) => f.pieces !== freightItem.pieces || f.weight !== freightItem.weight
         );
+  
+        // Add freight to target bin
         newBins[toBinId].freight.push(freightItem);
+  
+      // Handle transfer bags (new format: "{city} X {count}")
       } else if (content.includes('X')) {
-        // Moving transfer bags
-        const count = parseInt(content.split(' ')[1]);
-        const city = content.split(' ')[0];
-        newBins[fromBinId].count -= count;
-        newBins[fromBinId].isTransfer = false;
-        newBins[toBinId].count += count;
-        newBins[toBinId].isTransfer = true;
+        const parts = content.trim().split(' ');
+        const city = parts[0];
+        const bagCount = parseInt(parts[2]); // Get the number after 'X'
+  
+        // Remove bags from source bin
+        newBins[fromBinId].transferCount -= bagCount;
+        if (newBins[fromBinId].localCount === 0 && newBins[fromBinId].transferCount === 0) {
+          newBins[fromBinId].city = '';
+        }
+  
+        // Add bags to target bin
+        newBins[toBinId].transferCount += bagCount;
         newBins[toBinId].city = city;
+  
+      // Handle local bags (format: "{city} {count}")
       } else if (content !== '-') {
-        // Moving local bags
-        const [city, count] = content.split(' ');
-        newBins[fromBinId].count -= parseInt(count);
-        newBins[toBinId].count += parseInt(count);
+        const parts = content.trim().split(' ');
+        const city = parts[0];
+        const bagCount = parseInt(parts[1]);
+  
+        // Remove bags from source bin
+        newBins[fromBinId].localCount -= bagCount;
+        if (newBins[fromBinId].localCount === 0 && newBins[fromBinId].transferCount === 0) {
+          newBins[fromBinId].city = '';
+        }
+  
+        // Add bags to target bin
+        newBins[toBinId].localCount += bagCount;
         newBins[toBinId].city = city;
       }
   
       // Clean up empty bins
-      if (newBins[fromBinId].count === 0) {
-        newBins[fromBinId].city = '';
-        newBins[fromBinId].isTransfer = false;
-      }
+      Object.keys(newBins).forEach((bin) => {
+        if (newBins[bin].localCount === 0 && newBins[bin].transferCount === 0) {
+          newBins[bin].city = '';
+        }
+      });
   
+      // Generate updated output after moving the content
       generateOutput(newBins);
       return newBins;
     });
   };
+  
+  // new section
+
   // new section
 
   const handleInputChange = (type, value) => {
@@ -114,143 +140,154 @@ const AircraftLoadingForm = () => {
     reverseCurrentDistribution();
   };
 
-  const distributeBags = () => {
-    if (!selectedCity) {
-      setAlert("Please select a destination city before distributing bags");
-      return;
-    }
-  
-    setWarning(''); // Clear any previous warnings
-  
-    let newBins = {
-      A: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
-      B: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
-      C: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
-      D: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
-      E: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] },
-      F: { count: 0, isTransfer: false, city: '', gateChecks: 0, freight: [] }
-    };
-  
-    // Distribute gate checks
-    let remainingGateChecks = totals.gateChecks;
-    const gateCheckOrder = ['B', 'A', 'C', 'D', 'E', 'F'];
-    gateCheckOrder.forEach(bin => {
-      if (remainingGateChecks > 0) {
-        newBins[bin].gateChecks = Math.min(remainingGateChecks, BIN_CAPACITIES[bin]);
-        remainingGateChecks -= newBins[bin].gateChecks;
-      }
-    });
-  
-    // Distribute bags based on strategy
-    if (strategy === 'SLG') {
-      // Distribute local bags to forward bins (C, A, B)
-      let remainingLocal = totals.local;
-      const localBinOrder = ['C', 'A', 'B'];
-      localBinOrder.forEach(bin => {
-        if (remainingLocal > 0) {
-          newBins[bin].count = Math.min(remainingLocal, BIN_CAPACITIES[bin]);
-          remainingLocal -= newBins[bin].count;
-        }
-      });
-  
-      // Check if there are still remaining local bags
-      if (remainingLocal > 0) {
-        setWarning(prev => prev + `Warning: ${remainingLocal} local bags could not be accommodated in forward bins.\n`);
-      }
-  
-      // Distribute transfer bags to aft bins (D, E, F)
-      let remainingTransfer = totals.transfer;
-      const transferBinOrder = ['D', 'E', 'F'];
-      transferBinOrder.forEach(bin => {
-        if (remainingTransfer > 0) {
-          newBins[bin].count = Math.min(remainingTransfer, BIN_CAPACITIES[bin]);
-          newBins[bin].isTransfer = true;
-          remainingTransfer -= newBins[bin].count;
-        }
-      });
-  
-      // Check if there are still remaining transfer bags
-      if (remainingTransfer > 0) {
-        setWarning(prev => prev + `Warning: ${remainingTransfer} transfer bags could not be accommodated in aft bins.\n`);
-      }
-    } else if (strategy === '50/50') {
-      let remainingLocal = totals.local;
-      let remainingTransfer = totals.transfer;
-      
-      // Distribute local bags evenly between C and D
-      const halfLocal = Math.ceil(remainingLocal / 2);
-      newBins.C.count = Math.min(halfLocal, BIN_CAPACITIES.C);
-      remainingLocal -= newBins.C.count;
-      
-      newBins.D.count = Math.min(remainingLocal, BIN_CAPACITIES.D);
-      remainingLocal -= newBins.D.count;
-  
-      // Add transfer bags to bin D if there's space, keeping them separate
-      if (remainingTransfer > 0) {
-        const availableSpaceInD = BIN_CAPACITIES.D - newBins.D.count;
-        const transferToBinD = Math.min(remainingTransfer, availableSpaceInD);
-        if (transferToBinD > 0) {
-          newBins.D.transferCount = transferToBinD;
-          remainingTransfer -= transferToBinD;
-        }
-      }
-  
-      // Check if there are still remaining bags
-      if (remainingLocal > 0) {
-        setWarning(prev => prev + `Warning: ${remainingLocal} local bags could not be accommodated.\n`);
-      }
-      if (remainingTransfer > 0) {
-        setWarning(prev => prev + `Warning: ${remainingTransfer} transfer bags could not be accommodated.\n`);
-      }
-    }
-  
-    // Set city for all bins that have bags
-    Object.keys(newBins).forEach(bin => {
-      if (newBins[bin].count > 0 || (bin === 'D' && newBins[bin].transferCount > 0)) {
-        newBins[bin].city = selectedCity;
-      }
-    });
-  
-    // Distribute freight (no capacity limit)
-    let remainingFreight = [...totals.freight];
-    const freightOrder = ['D', 'C', 'E', 'F', 'A', 'B'];
-    freightOrder.forEach(bin => {
-      if (remainingFreight.length > 0) {
-        newBins[bin].freight.push(remainingFreight.shift());
-      }
-    });
-  
-    setBins(newBins);
-    if (isReversed) {
-      reverseCurrentDistribution();
-    } else {
-      generateOutput(newBins);
-    }
+
+const distributeBags = () => {
+  if (!selectedCity) {
+    setAlert("Please select a destination city before distributing bags");
+    return;
+  }
+
+  setWarning(''); // Clear any previous warnings
+
+  let newBins = {
+    A: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    B: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    C: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    D: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    E: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
+    F: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] }
   };
 
-  const generateOutput = (currentBins) => {
-    let newOutput = Object.entries(currentBins).map(([bin, content]) => {
-      let binContent = [];
-      if (content.count > 0) {
-        binContent.push(`${content.city} ${content.count}${content.isTransfer ? ' X' : ''}`);
+  // Distribute gate checks
+  let remainingGateChecks = totals.gateChecks;
+  const gateCheckOrder = ['B', 'A', 'C', 'D', 'E', 'F'];
+  gateCheckOrder.forEach(bin => {
+    if (remainingGateChecks > 0) {
+      newBins[bin].gateChecks = Math.min(remainingGateChecks, BIN_CAPACITIES[bin]);
+      remainingGateChecks -= newBins[bin].gateChecks;
+    }
+  });
+
+  // Distribute bags based on strategy
+  if (strategy === 'SLG') {
+    // Distribute local bags to forward bins (C, A, B)
+    let remainingLocal = totals.local;
+    const localBinOrder = ['C', 'A', 'B'];
+    localBinOrder.forEach(bin => {
+      if (remainingLocal > 0) {
+        newBins[bin].localCount = Math.min(remainingLocal, BIN_CAPACITIES[bin]);
+        newBins[bin].city = selectedCity;
+        remainingLocal -= newBins[bin].localCount;
       }
-      if (content.transferCount && content.transferCount > 0) {
+    });
+
+    // Check if there are still remaining local bags
+    if (remainingLocal > 0) {
+      setWarning(prev => prev + `Warning: ${remainingLocal} local bags could not be accommodated in forward bins.\n`);
+    }
+
+    // Distribute transfer bags to aft bins (D, E, F)
+    let remainingTransfer = totals.transfer;
+    const transferBinOrder = ['D', 'E', 'F'];
+    transferBinOrder.forEach(bin => {
+      if (remainingTransfer > 0) {
+        newBins[bin].transferCount = Math.min(remainingTransfer, BIN_CAPACITIES[bin]);
+        newBins[bin].city = selectedCity;
+        remainingTransfer -= newBins[bin].transferCount;
+      }
+    });
+
+    // Check if there are still remaining transfer bags
+    if (remainingTransfer > 0) {
+      setWarning(prev => prev + `Warning: ${remainingTransfer} transfer bags could not be accommodated in aft bins.\n`);
+    }
+  } else if (strategy === '50/50') {
+    let remainingLocal = totals.local;
+    let remainingTransfer = totals.transfer;
+    
+    // Distribute local bags evenly between C and D
+    const halfLocal = Math.ceil(remainingLocal / 2);
+    newBins.C.localCount = Math.min(halfLocal, BIN_CAPACITIES.C);
+    newBins.C.city = selectedCity;
+    remainingLocal -= newBins.C.localCount;
+    
+    newBins.D.localCount = Math.min(remainingLocal, BIN_CAPACITIES.D);
+    newBins.D.city = selectedCity;
+    remainingLocal -= newBins.D.localCount;
+
+    // Add transfer bags to bin D if there's space
+    if (remainingTransfer > 0) {
+      const availableSpaceInD = BIN_CAPACITIES.D - newBins.D.localCount;
+      const transferToBinD = Math.min(remainingTransfer, availableSpaceInD);
+      if (transferToBinD > 0) {
+        newBins.D.transferCount = transferToBinD;
+        remainingTransfer -= transferToBinD;
+      }
+    }
+
+    // Check if there are still remaining bags
+    if (remainingLocal > 0) {
+      setWarning(prev => prev + `Warning: ${remainingLocal} local bags could not be accommodated.\n`);
+    }
+    if (remainingTransfer > 0) {
+      setWarning(prev => prev + `Warning: ${remainingTransfer} transfer bags could not be accommodated.\n`);
+    }
+  }
+
+  // Distribute freight (no capacity limit)
+  let remainingFreight = [...totals.freight];
+  const freightOrder = ['D', 'C', 'E', 'F', 'A', 'B'];
+  freightOrder.forEach(bin => {
+    if (remainingFreight.length > 0) {
+      newBins[bin].freight.push(remainingFreight.shift());
+    }
+  });
+
+  setBins(newBins);
+  if (isReversed) {
+    reverseCurrentDistribution();
+  } else {
+    generateOutput(newBins);
+  }
+};
+
+const generateOutput = (currentBins) => {
+  let newOutput = Object.entries(currentBins)
+    .map(([bin, content]) => {
+      const binContent = [];
+
+      // Add local bags if present
+      if (content.localCount > 0) {
+        binContent.push(`${content.city} ${content.localCount}`);
+      }
+
+      // Add transfer bags if present
+      if (content.transferCount > 0) {
         binContent.push(`${content.city} X ${content.transferCount}`);
       }
+
+      // Add gate checks if present
       if (content.gateChecks > 0) {
         binContent.push(`GC ${content.gateChecks}`);
       }
+
+      // Add freight if present
       if (content.freight && content.freight.length > 0) {
         content.freight.forEach(f => {
           if (f.pieces > 0) {
-            binContent.push(`F ${f.pieces}/${f.weight}`);
+            binContent.push(`${content.city} F ${f.pieces}/${f.weight}`);
           }
         });
       }
-      return `Bin ${bin}: ${binContent.length > 0 ? binContent.join(', ') : '-'}`;
-    }).join('\n');
-    setOutput(newOutput);
-  };
+
+      // Join the content with commas, trimming any extra spaces
+      const binOutput = binContent.length > 0 ? binContent.join(', ').trim() : '-';
+      return `Bin ${bin}: ${binOutput}`;
+    })
+    .join('\n');
+
+  setOutput(newOutput);
+};
 
 
 
