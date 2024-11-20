@@ -116,8 +116,12 @@ const AircraftLoadingForm = () => {
     }, [cityInput]);
   
     const handleCityInputChange = (e) => {
-      setCityInput(e.target.value);
+      const value = e.target.value;
+      if (/^[A-Za-z]*$/.test(value) && value.length <= 3) {
+        setCityInput(value);
+      }
     };
+    
   
     const handleCitySelect = (city) => {
       setSelectedCity(city);
@@ -135,11 +139,11 @@ const AircraftLoadingForm = () => {
   const handleInputChange = (type, value) => {
     if (type === 'freight') {
       setFreightInput(value);
-    } else {
-      setTotals(prev => ({ ...prev, [type]: parseInt(value) || 0 }));
+    } else if (/^\d*$/.test(value)) { // Only allow numbers
+      setTotals((prev) => ({ ...prev, [type]: parseInt(value) || 0 }));
     }
   };
-
+  
   const reverseCurrentDistribution = () => {
     setBins(prevBins => {
       const newBins = { ...prevBins };
@@ -366,14 +370,14 @@ const generateOutput = (currentBins) => {
         </div>
       )}
       <div className="relative mb-4">
-        <input
-          type="text"
-          placeholder="Type to search for a city"
-          value={cityInput}
-          onChange={handleCityInputChange}
-          onKeyDown={handleCityInputKeyDown}
-          className="w-full p-2 border rounded"
-        />
+      <input
+        type="text"
+        placeholder="Type to search for a city"
+        value={cityInput}
+        onChange={handleCityInputChange}
+        onKeyDown={handleCityInputKeyDown}
+        className="w-full p-2 border rounded"
+      />
         {filteredCities.length > 0 && (
           <ul className="absolute z-10 w-full bg-white border border-gray-300 mt-1 max-h-60 overflow-auto">
             {filteredCities.map((city) => (
@@ -389,14 +393,17 @@ const generateOutput = (currentBins) => {
         )}
       </div>
       <div className="grid grid-cols-2 gap-4 mb-4">
+        {/* Local Bags */}
         <input
           type="number"
           placeholder="Local Bags"
           className="p-2 border rounded"
           onChange={(e) => handleInputChange('local', e.target.value)}
         />
+        
+        {/* Transfer Bags */}
         <input
-          type="number"
+          type="number" // Use text for custom validation
           placeholder="Transfer Bags (X)"
           className="p-2 border rounded"
           onChange={(e) => handleInputChange('transfer', e.target.value)}
