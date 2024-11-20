@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import DraggableBinLayout from './components/DraggableBinLayout'
-import { BIN_CAPACITIES } from './components/constants/constants'
+import { BIN_CAPACITIES, BIN_CAPACITIES_800} from './components/constants/constants'
 import CitySearch from './components/citySearch.jsx';
 
 const AircraftLoadingForm = () => {
@@ -13,9 +13,9 @@ const AircraftLoadingForm = () => {
 
   const [selectedCity, setSelectedCity] = useState('');
   const [cityInput, setCityInput] = useState('');
-  const [filteredCities, setFilteredCities] = useState([]);
   const [strategy, setStrategy] = useState('SLG');
   const [isReversed, setIsReversed] = useState(false);
+  const [selectedAircraft, setSelectedAircraft] = useState('700');
   const [bins, setBins] = useState({
     A: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
     B: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
@@ -24,7 +24,7 @@ const AircraftLoadingForm = () => {
     E: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] },
     F: { localCount: 0, transferCount: 0, city: '', gateChecks: 0, freight: [] }
   });
-
+  const currentBinCapacities = selectedAircraft === '700' ? BIN_CAPACITIES : BIN_CAPACITIES_800;
   const [output, setOutput] = useState('');
   const [alert, setAlert] = useState('');
   const [warning, setWarning] = useState('');
@@ -163,7 +163,7 @@ const distributeBags = () => {
   const gateCheckOrder = ['B', 'A', 'C', 'D', 'E', 'F'];
   gateCheckOrder.forEach(bin => {
     if (remainingGateChecks > 0) {
-      newBins[bin].gateChecks = Math.min(remainingGateChecks, BIN_CAPACITIES[bin]);
+      newBins[bin].gateChecks = Math.min(remainingGateChecks, currentBinCapacities[bin]);
       remainingGateChecks -= newBins[bin].gateChecks;
     }
   });
@@ -175,7 +175,7 @@ const distributeBags = () => {
     const localBinOrder = ['C', 'A', 'B'];
     localBinOrder.forEach(bin => {
       if (remainingLocal > 0) {
-        newBins[bin].localCount = Math.min(remainingLocal, BIN_CAPACITIES[bin]);
+        newBins[bin].localCount = Math.min(remainingLocal, currentBinCapacities[bin]);
         newBins[bin].city = selectedCity;
         remainingLocal -= newBins[bin].localCount;
       }
@@ -191,7 +191,7 @@ const distributeBags = () => {
     const transferBinOrder = ['D', 'E', 'F'];
     transferBinOrder.forEach(bin => {
       if (remainingTransfer > 0) {
-        newBins[bin].transferCount = Math.min(remainingTransfer, BIN_CAPACITIES[bin]);
+        newBins[bin].transferCount = Math.min(remainingTransfer, currentBinCapacities[bin]);
         newBins[bin].city = selectedCity;
         remainingTransfer -= newBins[bin].transferCount;
       }
@@ -207,17 +207,17 @@ const distributeBags = () => {
     
     // Distribute local bags evenly between C and D
     const halfLocal = Math.ceil(remainingLocal / 2);
-    newBins.C.localCount = Math.min(halfLocal, BIN_CAPACITIES.C);
+    newBins.C.localCount = Math.min(halfLocal, currentBinCapacities.C);
     newBins.C.city = selectedCity;
     remainingLocal -= newBins.C.localCount;
     
-    newBins.D.localCount = Math.min(remainingLocal, BIN_CAPACITIES.D);
+    newBins.D.localCount = Math.min(remainingLocal, currentBinCapacities.D);
     newBins.D.city = selectedCity;
     remainingLocal -= newBins.D.localCount;
 
     // Add transfer bags to bin D if there's space
     if (remainingTransfer > 0) {
-      const availableSpaceInD = BIN_CAPACITIES.D - newBins.D.localCount;
+      const availableSpaceInD = currentBinCapacities.D - newBins.D.localCount;
       const transferToBinD = Math.min(remainingTransfer, availableSpaceInD);
       if (transferToBinD > 0) {
         newBins.D.transferCount = transferToBinD;
@@ -314,7 +314,20 @@ const generateOutput = (currentBins) => {
 
   return (
     <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">700 Aircraft Loading Form</h1>
+      <h1 className="text-2xl font-bold mb-4">Aircraft Loading Form</h1>
+      {/* toggle aircraft */}
+      <div className="mb-4">
+        <label className="mr-2">
+          <input
+            type="checkbox"
+            checked={selectedAircraft === '800'}
+            onChange={(e) => setSelectedAircraft(e.target.checked ? '800' : '700')}
+            className="mr-2"
+          />
+          800 Aircraft
+        </label>
+      </div>
+      {/* toggle aircraft */}   
       {alert && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
           <span className="block sm:inline">{alert}</span>
@@ -406,7 +419,7 @@ const generateOutput = (currentBins) => {
             className="mr-2"
           />
           Reverse
-        </label>
+        </label>      
       </div>
       <button
         onClick={distributeBags}
