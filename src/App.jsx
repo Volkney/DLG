@@ -351,6 +351,12 @@ const generateOutput = (currentBins) => {
             className="p-2 border rounded flex-grow"
             value={freightInput}
             onChange={(e) => handleInputChange('freight', e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent default form submission or unintended behavior
+                addFreightEntry(); // Add the freight entry
+              }
+            }}
           />
           <button
             onClick={addFreightEntry}
@@ -359,6 +365,7 @@ const generateOutput = (currentBins) => {
             +
           </button>
         </div>
+
         <input
           type="number"
           placeholder="Gate Checks (GC)"
