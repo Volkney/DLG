@@ -377,7 +377,7 @@ const generateOutput = (currentBins) => {
         {totals.freight.map((entry, index) => (
           <div key={index} className="mb-2">
             F {entry.pieces}/{entry.weight}
-            {index > 0 && (
+            {index >= 0 && (
               <button
                 onClick={() => removeFreightEntry(index)}
                 className="ml-2 text-red-500"
