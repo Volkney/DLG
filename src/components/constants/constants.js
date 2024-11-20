@@ -1,6 +1,11 @@
 export const BIN_CAPACITIES = {
     A: 25, B: 10, C: 50, D: 80, E: 10, F: 10
-  };
+};
+  
+export const BIN_CAPACITIES_800 = {
+  A: 30, B: 10, C: 110, D: 140, E: 10, F: 15
+};
+
   
 export const CITIES = [
     "ABQ", "ALB", "AMA", "ATL", "AUA", "AUS", "BDL", "BHM", "BNA", "BOI", "BOS", "BUF", "BUR", "BWI", "BZE", "BZN",
