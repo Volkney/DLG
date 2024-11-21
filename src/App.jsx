@@ -11,6 +11,19 @@ const AircraftLoadingForm = () => {
     gateChecks: 0
   });
 
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(output)
+      .then(() => {
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000); // Reset after 2 seconds
+      })
+      .catch((err) => {
+        console.error('Failed to copy text: ', err);
+      });
+  };
+
   const [selectedCity, setSelectedCity] = useState('');
   const [cityInput, setCityInput] = useState('');
   const [strategy, setStrategy] = useState('SLG');
@@ -492,8 +505,17 @@ const generateOutput = (currentBins) => {
         
         {/* Right column - Output */}
         {output && (
-          <div className='my-6'>
-            <pre className="bg-gray-100 p-2 rounded whitespace-pre-wrap my-6">
+          <div className="my-6">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-lg font-semibold">Output:</h2>
+              <button
+                onClick={copyToClipboard}
+                className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600"
+              >
+                {copySuccess ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <pre className="bg-gray-100 p-2 rounded whitespace-pre-wrap">
               {output}
             </pre>
           </div>
